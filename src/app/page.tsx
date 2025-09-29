@@ -1,9 +1,12 @@
 import { Button } from "@/components/ui/button";
 
-const Page = ()=>{
+const Page =  ()=>{
+
+
+  
     return (
-        <div className="font-bold">Hello world!
-          <Button variant={"destructive"}>click me</Button>
+        <div className="font-bold">
+            Hello, Vibe!
         </div>
     )
 }
