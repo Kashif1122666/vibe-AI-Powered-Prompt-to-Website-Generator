@@ -1,46 +1,162 @@
 import { Sandbox } from "@e2b/code-interpreter";
-import { openai, createAgent } from "@inngest/agent-kit";
+import { openai, createAgent, createTool, createNetwork } from "@inngest/agent-kit";
+import { PROMPT } from "@/prompt";
 import { inngest } from "./client";
-import { getSandbox } from "./utils";
+import { getSandbox, lastAssitantTextMessageContent } from "./utils";
+import { z } from "zod";
+
+
 
 export const helloWorld = inngest.createFunction(
   { id: "hello-world" },
   { event: "test/hello.world" },
-  async ({ event , step }) => {
+  async ({ event, step }) => {
 
-    const sandboxId = await step.run("get-sandbox-id" , async ()=>{
+    const sandboxId = await step.run("get-sandbox-id", async () => {
       const sandbox = Sandbox.create("vibe-nextjs-kaif-123-2");
       return (await sandbox).sandboxId;
     });
 
     const codeAgent = createAgent({
-  name: "code-agent",
-  system: "You are an expert next.js developer. You write readable, maintainable code. you write simple Next.js & React snippets.",
-  model: openai({
-    model: "gpt-4o",
-    baseUrl: "https://openrouter.ai/api/v1",
-    // 👇 Cast to any to bypass TypeScript validation
-    extraOptions: {
-      headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-        "HTTP-Referer": "http://localhost:3000",
-        "X-Title": "Inngest Summarizer",
+      name: "code-agent",
+      description: "An expert coding agent",
+      system: PROMPT,
+
+      model: openai({
+        model: "gpt-4.1",
+        defaultParameters: {
+          temperature: 0.1,
+        },
+      }),
+
+      tools: [
+        createTool({
+          name: "terminal",
+          description: "Use the terminal to run commands",
+          parameters: z.object({ command: z.string() }),
+          handler: async ({ command }, { step }) => {
+            return await step?.run("terminal", async () => {
+              const buffer = { stdout: "", stderr: "" };
+              try {
+                const sandbox = await getSandbox(sandboxId);
+                const result = await sandbox.commands.run(command, {
+                  onStdout: (data) => {
+                    buffer.stdout += data;
+                  },
+                  onStderr: (data) => {
+                    buffer.stderr += data;
+                  },
+                });
+                return result.stdout;
+              } catch (e) {
+                console.error(
+                  `Command failed: ${e} \n stdout: ${buffer.stdout} \n stderr: ${buffer.stderr}`
+                );
+                return `Command failed: ${e} \n stdout: ${buffer.stdout} \n stderr: ${buffer.stderr}`;
+              }
+            });
+          },
+        }),
+        createTool({
+  name: "createOrUpdateFiles",
+  description: "Create or update files in the sandbox with debug logs",
+  parameters: z.object({
+    files: z.array(
+      z.object({ path: z.string(), content: z.string() })
+    ),
+  }),
+  handler: async ({ files }, { step, network }) => {
+    const newFiles = await step!.run("createOrUpdateFiles", async () => {
+      const updatedFiles = network.state.data.files || {};
+      const sandbox = await getSandbox(sandboxId);
+
+      try {
+
+        for (const file of files) {
+          try {
+            await sandbox.files.write(file.path, file.content);
+            updatedFiles[file.path] = file.content;
+          } catch (fileError) {
+            console.error(`❌ Failed writing file: ${file.path}`, fileError);
+          }
+
+          // Optional: slight delay to prevent rapid-fire issues
+          await new Promise((r) => setTimeout(r, 100));
+        }
+
+        return updatedFiles;
+      } catch (e: unknown) {
+  const errMsg = e instanceof Error ? e.message : String(e);
+  return { error: errMsg };
+}
+    });
+
+    if (typeof newFiles === "object") {
+      network.state.data.files = newFiles;
+    }
+  },
+}),
+        createTool({
+          name: "readFiles",
+          description: "Read files from the sandbox",
+          parameters: z.object({ files: z.array(z.string()) }),
+          handler: async ({ files }, { step }) => {
+            return await step?.run("readFiles", async () => {
+              try {
+                const sandbox = await getSandbox(sandboxId);
+                const contents = [];
+                for (const file of files) {
+                  const content = await sandbox.files.read(file);
+                  contents.push({ path: file, content });
+                }
+                return JSON.stringify(contents);
+              } catch (e) {
+                return "Error: " + e;
+              }
+            });
+          },
+        }),
+      ],
+
+      lifecycle: {
+        onResponse: async ({ result, network }) => {
+          const lastAssitantMessageText = lastAssitantTextMessageContent(result);
+          if (lastAssitantMessageText && network) {
+            if (lastAssitantMessageText.includes("<task_summary>")) {
+              network.state.data.summary = lastAssitantMessageText;
+            }
+          }
+          return result;
+        },
       },
-    },
-  } as any), // ✅ cast fixes TypeScript error
-});
+    });
 
+    const network = createNetwork({
+      name: "coding-agent-network",
+      agents: [codeAgent],
+      maxIter: 15,
+      router: async ({ network }) => {
+        const summary = network.state.data.summary;
+        if (summary) {
+          return;
+        }
+        return codeAgent;
+      },
+    });
 
-    const { output } = await codeAgent.run(
-      `write the following snippet: ${event.data.value}`
-    );
-    
-     const sandboxUrl = await step.run("get-sandbox-url" , async()=>{
-         const sandbox = getSandbox(sandboxId);
-         const host = (await sandbox).getHost(3000)
-         return `https://${host}`; 
-     });
+    const result = await network.run(event.data.value);
 
-    return { output , sandboxUrl };
+    const sandboxUrl = await step.run("get-sandbox-url", async () => {
+      const sandbox = getSandbox(sandboxId);
+      const host = (await sandbox).getHost(3000);
+      return `https://${host}`;
+    });
+
+    return {
+      url: sandboxUrl,
+      title: "Fragment",
+      files: result.state.data.files,
+      summary: result.state.data.summary,
+    };
   }
 );

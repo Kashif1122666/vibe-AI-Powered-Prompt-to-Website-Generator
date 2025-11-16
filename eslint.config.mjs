@@ -11,6 +11,15 @@ const compat = new FlatCompat({
 
 const eslintConfig = [
   ...compat.extends("next/core-web-vitals", "next/typescript"),
+    // Ignore folders with generated or third-party code
+  {
+    ignores: [
+      "node_modules/**",
+      "src/generated/**", // your prisma / wasm generated files
+      ".next/**",         // Next.js build folder
+    ],
+  },
+  
 ];
 
 export default eslintConfig;
