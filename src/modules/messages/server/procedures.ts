@@ -5,10 +5,21 @@ import z from "zod";
 
 export  const messagesRouter = createTRPCRouter({
     getMany : baseProcedure
-    .query(async ()=>{
+     .input(
+        z.object({
+             projectId : z.string().min(1, {message: "Project id is required"}),
+        }),
+    )
+    .query(async ({input})=>{
         const messages = await prisma.message.findMany({
+            where :{
+              projectId : input.projectId
+            },
+            include:{
+               fragment:true,
+            },
         orderBy:{
-            updatedAt:"desc"
+            updatedAt:"asc"
         },
         //    include:{
         //     fragment:true,
@@ -35,7 +46,7 @@ export  const messagesRouter = createTRPCRouter({
                 type: "RESULT",
             },
         });
-
+         
         await inngest.send({
                   name:"code-agent/run",
                   data:{
