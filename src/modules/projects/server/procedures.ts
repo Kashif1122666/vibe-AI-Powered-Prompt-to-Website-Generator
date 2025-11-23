@@ -6,6 +6,7 @@ import { baseProcedure, createTRPCRouter } from "@/trpc/init";
 import { TRPCError } from "@trpc/server";
 
 export  const projectsRouter = createTRPCRouter({
+    
     getOne : baseProcedure
     .input(z.object({
         id:z.string().min(1,{message:"id is required"})
@@ -22,6 +23,14 @@ export  const projectsRouter = createTRPCRouter({
         return existingProject;
 
 }),
+
+getMany: baseProcedure
+  .input(z.void())
+  .query(async () => {
+    return prisma.project.findMany({
+      orderBy: { updatedAt: "desc" },
+    });
+  }),
     create:baseProcedure
     .input(
         z.object({
