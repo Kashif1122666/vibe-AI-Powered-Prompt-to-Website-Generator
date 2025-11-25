@@ -13,6 +13,7 @@ import { MessagesContainer } from "../components/messages-container";
 import { ProjectHeader } from "../components/project-header";
 import { FragmentWeb } from "../components/fragment-web";
 import Link from "next/link";
+import { UserControl } from "@/components/user-control";
 
 
 interface   Props {
@@ -63,12 +64,14 @@ export const  ProjectView = ({projectId}:Props)=>{
                                          <CodeIcon/> <span>Code</span>
                                   </TabsTrigger>
                                 </TabsList>
+
                                 <div className=" ml-auto flex items-center gap-x-2">
                                        <Button asChild size="sm" variant="tertiary">
                                              <Link href="/pricing">
                                                <CrownIcon/>Upgrade
                                              </Link>
                                        </Button>
+                                       <UserControl/>
                                 </div>
                               </div>
                               <TabsContent value="preview">
