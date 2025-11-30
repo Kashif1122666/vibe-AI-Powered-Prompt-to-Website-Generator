@@ -14,6 +14,7 @@ import { ProjectHeader } from "../components/project-header";
 import { FragmentWeb } from "../components/fragment-web";
 import Link from "next/link";
 import { UserControl } from "@/components/user-control";
+import { useAuth } from "@clerk/nextjs";
 
 
 interface   Props {
@@ -21,9 +22,11 @@ interface   Props {
 }
 
 export const  ProjectView = ({projectId}:Props)=>{
-
-       const [activeFragment , setActiveFragment] =  useState<Fragment | null>(null);
-       const [tabState , setTabState] =  useState<"preview" | "code">("preview");
+        
+      const  {has} = useAuth();
+      const hasProAccess = has?.({plan:"pro"});
+      const [activeFragment , setActiveFragment] =  useState<Fragment | null>(null);
+      const [tabState , setTabState] =  useState<"preview" | "code">("preview");
       
     // const trpc = useTRPC();
       // const {data:project} = useSuspenseQuery(trpc.projects.getOne.queryOptions({
@@ -66,11 +69,13 @@ export const  ProjectView = ({projectId}:Props)=>{
                                 </TabsList>
 
                                 <div className=" ml-auto flex items-center gap-x-2">
-                                       <Button asChild size="sm" variant="tertiary">
+                                      {!hasProAccess && (
+                                         <Button asChild size="sm" variant="tertiary">
                                              <Link href="/pricing">
                                                <CrownIcon/>Upgrade
                                              </Link>
                                        </Button>
+                                      )}
                                        <UserControl/>
                                 </div>
                               </div>
