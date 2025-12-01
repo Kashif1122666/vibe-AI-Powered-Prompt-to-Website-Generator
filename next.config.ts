@@ -1,14 +1,15 @@
 import type { NextConfig } from "next";
+import path from "path";
+
 
 const nextConfig: NextConfig = {
   /* config options here */
   eslint:{
     ignoreDuringBuilds:true,
   },
-   webpack: (config) => {
-    // Ignore your user folder to prevent EPERM errors
+    webpack: (config) => {
     config.watchOptions = {
-      ignored: ['C:/Users/Kashif Afridi/**'],
+      ignored: [path.resolve(process.cwd(), 'C:/Users/Kashif Afridi/**')],
     };
     return config;
   },
