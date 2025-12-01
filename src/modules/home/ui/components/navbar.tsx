@@ -17,8 +17,8 @@ export const Navbar = ()=>{
             )}>
             <div className="max-w-5xl mx-auto w-full flex justify-between items-center">
                 <Link href="/" className="flex items-center gap-2">
-                  <Image src="/logo.svg" alt="vibe" width={24} height={24}/>
-                  <span className="font-semibold text-lg">Vibe</span>
+                  <Image src="/logo.svg" alt="KaifGenUI" width={24} height={24}/>
+                  <span className="font-semibold text-lg">KaifGenUI</span>
                 </Link>
                 <SignedOut>
                    <div className="flex gap-2">

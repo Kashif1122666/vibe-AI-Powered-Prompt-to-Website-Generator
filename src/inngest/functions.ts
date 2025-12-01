@@ -5,6 +5,7 @@ import { prisma } from "@/lib/db";
 import { inngest } from "./client";
 import { getSandbox, lastAssitantTextMessageContent, parseAgentOuput } from "./utils";
 import { z } from "zod";
+import { SANDBOX_TIMEOUT } from "./types";
 
 
 interface AgentState {
@@ -23,6 +24,7 @@ export const codeAgentFunction = inngest.createFunction(
 
     const sandboxId = await step.run("get-sandbox-id", async () => {
       const sandbox = Sandbox.create("vibe-nextjs-kaif-123-2");
+      (await sandbox).setTimeout(SANDBOX_TIMEOUT);
       return (await sandbox).sandboxId;
     });
 
@@ -33,8 +35,9 @@ export const codeAgentFunction = inngest.createFunction(
           projectId : event.data.projectId,
         },
         orderBy : {
-          createdAt:"desc" // todo add it asc if the ai does not understand what is the last message
+          createdAt:"desc"
         },
+        take : 5,
        });
        
        for(const message of messages){
@@ -45,7 +48,7 @@ export const codeAgentFunction = inngest.createFunction(
           });
        }
 
-       return  formattedMessages;
+       return  formattedMessages.reverse();
     });
 
     const state  = createState<AgentState>(
